@@ -1,14 +1,25 @@
 ; a macro that recives one argument and pushed it to the operand stack
 %macro push_operand_stack 1
+  push ebx 
+  mov ebx, [stack_max_size]
+  cmp [stack_size], ebx
+  je %%end_of_push
+  inc dword [stack_size]
   mov ecx, [stack_pointer]
   mov dword [ecx], %1
   add dword [stack_pointer], 4
+  %%end_of_push:
+  pop ebx
 %endmacro
 ; a macro that recieves one argument, pops a linked list from the operand stack and stores it in the argument
 %macro pop_operand_stack 1
+  cmp dword [stack_size], 0
+  je %%end_of_pop
+  dec dword [stack_size] 
   sub dword [stack_pointer], 4
   mov ecx, [stack_pointer]
   mov dword %1, [ecx]
+  %%end_of_pop:
 %endmacro
 
 section .bss
@@ -23,6 +34,8 @@ section .rodata
 section .data
   debug: db 0
   stack_pointer: dd 0
+  stack_size: dd 0
+  stack_max_size: dd 5
 section .text
   align 16
   global main
@@ -96,13 +109,15 @@ main:                   ; signature: main(int argc, char* argv[]) ; desc: main f
   call calloc           ; allocate memory for operand_stack on heap
   add esp, 8            ; clean stack
   mov [stack_pointer], eax          ; stack_pointer will be the operand_stack pointer
+  mov eax, [ebp - 4]
+  mov [stack_max_size], eax
   call myCalc           ; call myCalc
   push eax              ; push number of calculations as a second argument to printf
   push integer_string_format ; push the format string as first argument to printf
   call printf
   add esp, 8            ; clean stack
   popad
-  add esp, 1            ; pop the local variable              
+  add esp, 4            ; pop the local variable              
   mov esp, ebp	
 	pop ebp
   ret
@@ -308,11 +323,11 @@ print_list: ; signature: print_list(link* list) => void. description: prints an 
   push calc_string_format
   call printf
   add esp, 8
-  
   popad
   mov esp, ebp
   pop ebp
   ret
+
 print_list_recursive: ; signature: print_list(link* list) => void. description: prints an hexadecimal number from a linked list
   push ebp
   mov ebp, esp
@@ -384,13 +399,20 @@ unsignedAddition:       ; signature: unsignedAddition() => void ; description: a
 popAndPrint:            ; signature: popAndPrint() => void
   push ebp
   mov ebp, esp
+  sub esp, 4
   pushad
   pop_operand_stack esi
+  mov [ebp - 4], esi
   mov edx, esi
   push edx
   call print_list
   add esp, 4
+  mov eax, [ebp - 4]
+  push eax
+  call free_list
+  add esp, 4
   popad
+  add esp, 4
   mov esp, ebp	
 	pop ebp
   ret
@@ -441,11 +463,12 @@ duplicate:              ; signature: duplicate() => void
   bitwiseAnd:
     push ebp
     mov ebp, esp
-    sub esp, 4
+    sub esp, 8
     pushad
     pop_operand_stack esi ; esi = stack.pop(), pop operands. 
     mov [ebp - 4], esi    ; temp = esi save a pointer to the beggining of the first linked list
     pop_operand_stack edi    ; edi = stack.pop()
+    mov [ebp - 8], edi
     and_while_start:
       cmp esi, 0  ; if esi == null
       je and_whlie_end
@@ -464,8 +487,12 @@ duplicate:              ; signature: duplicate() => void
       jmp long_edi_end
     long_esi:
       cmp esi, 0
-        je long_long_esi_end
+      je long_esi_end
+      mov edx, [esi + 1]
       mov dword [esi + 1], 0
+      push edx
+      call free_list
+      add esp, 4
       ; cmp esi, 0  ;if esi == null
       ; je long_esi_end 
       ; mov al, 0
@@ -475,9 +502,13 @@ duplicate:              ; signature: duplicate() => void
     long_esi_end:
       mov eax, [ebp - 4]  
       push_operand_stack eax ;   push esi
+      mov eax, [ebp - 8]
+      push eax
+      call free_list
+      add esp, 4
     and_end_func:
     popad
-    add esp, 4
+    add esp, 8
     mov esp, ebp	
     pop ebp
     ret
@@ -486,11 +517,12 @@ duplicate:              ; signature: duplicate() => void
 bitwiseOr:              ; signature: bitwiseOr() => void
   push ebp
   mov ebp, esp
-  sub esp, 4
+  sub esp, 8
   pushad
   pop_operand_stack esi ; esi = stack.pop(), pop operands. 
   mov [ebp - 4], esi    ; temp = esi save a pointer to the beggining of the first linked list
   pop_operand_stack edi    ; edi = stack.pop()
+  mov [ebp - 8], edi    ; temp = esi save a pointer to the beggining of the first linked list
   or_while_start:
     cmp dword [esi + 1], 0  ; if esi->next == null
     je or_whlie_end
@@ -514,6 +546,7 @@ bitwiseOr:              ; signature: bitwiseOr() => void
     mov al, [edi]   
     or [esi], al   ; esi | edi
     mov eax, [edi + 1]
+    mov dword [edi + 1], 0
     mov [esi + 1], eax ;esi->next = edi->next
     jmp or_end_func
     ; cmp edi, 0  ;if edi == null
@@ -533,9 +566,13 @@ bitwiseOr:              ; signature: bitwiseOr() => void
     or [esi], al   ; esi | edi
   or_end_func:
   mov eax, [ebp - 4]  
-    push_operand_stack eax ;   push esi
+  push_operand_stack eax ;   push esi
+  mov eax, [ebp - 8]
+  push eax
+  call free_list
+  add esp, 4 
   popad
-  add esp, 4
+  add esp, 8
   mov esp, ebp	
 	pop ebp
   ret
@@ -565,25 +602,36 @@ numOfHexDigits:         ; signature: numOfHexDigits() => void
   call append
   add esp, 8
   push_operand_stack eax
+  mov eax, [ebp - 4]
+  push eax
+  call free_list
+  add esp, 4
   popad
   mov esp, ebp	
 	pop ebp
   ret
 
 ; signature: free_list(link* list) => void 
+; purpose: frees the memory of a linked list
 free_list:
   push ebp
   mov ebp, esp
   pushad
   mov esi, [ebp + 8]    ; get the list argument
-  cmp esi, 0
+  cmp esi, 0            ; base case of NULL list
   je end_free_list_func
-  push dword [list + 1]
+  push dword [esi + 1]  ; push the next link as argument
+  call free_list        ; recursivly call this function to free the next node
+  add esp, 4            ; clean stack
+  push esi              ; push current list pointer ad argument to free function
+  call free             ; free the allocated memory for the current node
+  add esp, 4            ; clean stack
   end_free_list_func:
   popad
   mov esp, ebp
   pop ebp
   ret
+
 
 
 
