@@ -134,6 +134,19 @@ main:                   ; signature: main(int argc, char* argv[]) ; desc: main f
   push integer_string_format ; push the format string as first argument to printf
   call printf
   add esp, 8            ; clean stack
+  ; free stack
+  empty_stack_while_start:
+  cmp dword [stack_size], 0
+  je empty_stack_while_end
+  pop_operand_stack eax
+  push eax              ; push the poped opernad form the stack to free its memory
+  call free_list        ; free the memory pointed by eax
+  add esp, 4            ; free the memory
+  jmp empty_stack_while_start
+  empty_stack_while_end:
+  push dword [stack_pointer]
+  call free             ; free the memory of the operand_stack
+  add esp, 4
   popad
   add esp, 4            ; pop the local variable              
   mov esp, ebp	
@@ -429,9 +442,12 @@ unsignedAddition:       ; signature: unsignedAddition() => void ; description: a
   call print_list
   add esp, 4
   mov eax, [ebp - 4]
-  push_operand_stack eax ; this pushing must succeed since we poped 2 operands earlier
+  push_operand_stack eax  ; this pushing must succeed since we poped 2 operands earlier
+  push dword [ebp - 16]   ; free the second operand list
+  call free_list
+  add esp, 4 
   popad
-  add esp, 4
+  add esp, 16
   mov esp, ebp	
 	pop ebp
   ret
@@ -671,19 +687,4 @@ free_list:
   mov esp, ebp
   pop ebp
   ret
-
-
-
-
-; unsignedMultiplication: ; signature: unsignedMultiplication() => void
-;   push ebp
-;   mov ebp, esp
-;   pushad
-
-
-;   popad
-;   mov esp, ebp	
-; 	pop ebp
-;   ret
-
   
