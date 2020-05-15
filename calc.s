@@ -19,8 +19,9 @@
   %%end_of_push:
   pop ebx
 %endmacro
-; a macro that recieves one argument, pops a linked list from the operand stack and stores it in the argument
+; a macro that recieves one argument, pops a linked list from the operand stack and stores it in the argument, if the stack is empty the given argument is 0
 %macro pop_operand_stack 1
+  mov dword %1, 0
   cmp dword [stack_size], 0
   je %%poping_error
   dec dword [stack_size] 
