@@ -3,22 +3,38 @@
   push ebx 
   mov ebx, [stack_max_size]
   cmp [stack_size], ebx
-  je %%end_of_push
+  je %%pushing_error
   inc dword [stack_size]
   mov ecx, [stack_pointer]
   mov dword [ecx], %1
   add dword [stack_pointer], 4
+  jmp %%end_of_push
+  %%pushing_error:
+  pushad
+  push push_error_string
+  push calc_string_format
+  call printf
+  add esp, 8
+  popad
   %%end_of_push:
   pop ebx
 %endmacro
 ; a macro that recieves one argument, pops a linked list from the operand stack and stores it in the argument
 %macro pop_operand_stack 1
   cmp dword [stack_size], 0
-  je %%end_of_pop
+  je %%poping_error
   dec dword [stack_size] 
   sub dword [stack_pointer], 4
   mov ecx, [stack_pointer]
   mov dword %1, [ecx]
+  jmp %%end_of_pop
+  %%poping_error:
+  pushad
+  push pop_error_string
+  push calc_string_format
+  call printf
+  add esp, 8
+  popad
   %%end_of_pop:
 %endmacro
 
@@ -31,6 +47,8 @@ section .rodata
   debug_string: db "debug: ",10, 0
   hexa_string_format: db "%02X", 0
   new_line: db 10, 0
+  push_error_string: db "Error: Operand Stack Overflow",10,0
+  pop_error_string: db "Error: Insufficient Number of Arguments on Stack", 10, 0
 section .data
   debug: db 0
   stack_pointer: dd 0
@@ -355,41 +373,63 @@ print_list_recursive: ; signature: print_list(link* list) => void. description: 
 unsignedAddition:       ; signature: unsignedAddition() => void ; description: adds two numbers represented with a linked list
   push ebp              ; stores the result in the first argument and returns it.
   mov ebp, esp
-  sub esp, 4
+  sub esp, 16           ; allocate 4 local variables, two for saving the pointer to the beggining of the operands, the other two
+  ; for saving the previous link for both the operands
   pushad
   pop_operand_stack esi ; esi = stack.pop(), pop operands. 
   mov [ebp - 4], esi    ; temp = esi save a pointer to the beggining of the first linked list
   pop_operand_stack edi ; edi = stack.pop()
-  clc
+  mov [ebp - 16], edi
+  clc                   ; CF = 0. clear the carry flag
+  pushfd                ; save the flags so other commands won't change them
   addition_while_start:
-    cmp dword [esi + 1], 0    ; if (esi->next == null)
+    cmp esi, 0          ; if (esi == null)
     je addition_while_end
     cmp edi, 0          ; if (edi == null)
     je addition_while_end
     mov al, [edi]       ; al = edi->value
+    popfd
     adc [esi], al       ; esi->value += al + carry_flag
+    pushfd
+    mov [ebp - 8], esi
+    mov [ebp - 12], edi
     mov esi, [esi + 1]  ; esi = esi->next 
     mov edi, [edi + 1]  ; edi = edi->next
     jmp addition_while_start
   addition_while_end:
   cmp edi, 0
   je first_op_while_start
-  mov al, [edi]         ; if (esi->next == null) l = edi->value
-  adc [esi], al         ; esi->value += al + carry_flag
-  mov eax, [edi + 1]
-  mov [esi + 1], eax           
+  ; the case whree len(edi) > len(esi) if we got here it means the loop ended because esi is 0 and edi isn't  
+  mov esi, [ebp - 8]    ; esi = esi->prev
+  mov [esi + 1], edi    ; esi(->prev)->next = edi. set esi to point. set esi to point to the rest of the edi list
+  mov edi, [ebp - 12]   ; edi = edi->prev
+  mov dword [edi + 1], 0      ; edi->next = NULL. detach the rest of edi from the start of it
+  mov [ebp - 8], esi    ; set the esi->prev local variable
+  mov esi, [esi + 1]    ; esi = esi->next. returning esi to point to the real next node
   first_op_while_start:
     cmp esi, 0
     je first_op_while_end
-    adc byte [esi], 0   
+    popfd
+    adc byte [esi], 0
+    pushfd 
+    mov [ebp - 8], esi  
     mov esi, [esi + 1]
     jmp first_op_while_start
   first_op_while_end:
+  popfd
+  jnc no_carry
+  push dword 0          ; push NULL as first argument to append
+  push dword 1          ; since there is a carry, push 1 to be the new MSB link
+  call append           ; create a link for 1
+  add esp, 8            ; clean stack
+  mov esi, [ebp - 8]    ; set esi to the last non-null node
+  mov [esi + 1], eax    ; set its next node to be the new created node of 1
+  no_carry: 
   push dword [ebp - 4]
   call print_list
   add esp, 4
   mov eax, [ebp - 4]
-  push_operand_stack eax
+  push_operand_stack eax ; this pushing must succeed since we poped 2 operands earlier
   popad
   add esp, 4
   mov esp, ebp	
@@ -451,7 +491,7 @@ duplicate:              ; signature: duplicate() => void
   dup_while_end:
   mov edx, [ebp - 4]
   push_operand_stack edx  ; push the list we popped at the beginig 
-  push_operand_stack edi  ; push the duplicate list
+  push_operand_stack edi  ; push the duplicate list. this push might not succeed, handled by the macro.
   popad
   add esp, 4
   mov esp, ebp	
@@ -501,7 +541,7 @@ duplicate:              ; signature: duplicate() => void
       ; jmp long_esi
     long_esi_end:
       mov eax, [ebp - 4]  
-      push_operand_stack eax ;   push esi
+      push_operand_stack eax ;   push esi, ; this pushing must succeed since we poped 2 operands earlier
       mov eax, [ebp - 8]
       push eax
       call free_list
@@ -566,7 +606,7 @@ bitwiseOr:              ; signature: bitwiseOr() => void
     or [esi], al   ; esi | edi
   or_end_func:
   mov eax, [ebp - 4]  
-  push_operand_stack eax ;   push esi
+  push_operand_stack eax ;   push esi, ; this pushing must succeed since we poped 2 operands earlier
   mov eax, [ebp - 8]
   push eax
   call free_list
