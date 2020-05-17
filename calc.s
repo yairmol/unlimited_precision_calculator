@@ -507,6 +507,9 @@ duplicate:              ; signature: duplicate() => void
     jmp dup_while_start
   dup_while_end:
   mov edx, [ebp - 4]
+  push edx
+  call print_list
+  add esp, 4
   push_operand_stack edx  ; push the list we popped at the beginig 
   push_operand_stack edi  ; push the duplicate list. this push might not succeed, handled by the macro.
   popad
@@ -527,9 +530,9 @@ duplicate:              ; signature: duplicate() => void
     pop_operand_stack edi    ; edi = stack.pop()
     mov [ebp - 8], edi
     and_while_start:
-      cmp esi, 0  ; if esi == null
+      cmp dword [esi + 1], 0  ; if esi->next == null
       je and_whlie_end
-      cmp edi, 0  ; if edi == null
+      cmp dword [edi + 1], 0  ; if edi->next == null
       je and_whlie_end
       mov al, [edi]   
       and [esi], al   ; esi & edi
@@ -537,14 +540,16 @@ duplicate:              ; signature: duplicate() => void
       mov edi, [edi + 1]  ; edi = edi->next
       jmp and_while_start
     and_whlie_end:
-      cmp edi, 0  ; if |edi|<|esi|
+      cmp dword [edi + 1], 0  ; if |edi|<=|esi|
       je long_esi
       ; mov eax, [ebp - 4]  ;push esi
       ; push_operand_stack eax
-      jmp long_edi_end
+      jmp long_esi_end
     long_esi:
-      cmp esi, 0
+      cmp dword [esi + 1], 0  ; if |esi| == |edi|
       je long_esi_end
+      mov al, [edi]
+      and [esi], al ;esi & edi
       mov edx, [esi + 1]
       mov dword [esi + 1], 0
       push edx
@@ -557,7 +562,12 @@ duplicate:              ; signature: duplicate() => void
       ; mov esi, [esi + 1]  ;esi = esi->next
       ; jmp long_esi
     long_esi_end:
-      mov eax, [ebp - 4]  
+      mov al, [edi]
+      and [esi], al ; esi & edi
+      mov eax, [ebp - 4]
+      push eax
+      call print_list
+      add esp, 4  
       push_operand_stack eax ;   push esi, ; this pushing must succeed since we poped 2 operands earlier
       mov eax, [ebp - 8]
       push eax
@@ -602,9 +612,10 @@ bitwiseOr:              ; signature: bitwiseOr() => void
     je long_edi_end
     mov al, [edi]   
     or [esi], al   ; esi | edi
+
     mov eax, [edi + 1]
-    mov dword [edi + 1], 0
     mov [esi + 1], eax ;esi->next = edi->next
+    mov dword [edi + 1], 0
     jmp or_end_func
     ; cmp edi, 0  ;if edi == null
     ; je long_edi_end 
@@ -622,7 +633,10 @@ bitwiseOr:              ; signature: bitwiseOr() => void
     mov al, [edi]   
     or [esi], al   ; esi | edi
   or_end_func:
-  mov eax, [ebp - 4]  
+  mov eax, [ebp - 4]
+  push eax
+  call print_list
+  add esp, 4  
   push_operand_stack eax ;   push esi, ; this pushing must succeed since we poped 2 operands earlier
   mov eax, [ebp - 8]
   push eax
