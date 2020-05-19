@@ -521,16 +521,6 @@ duplicate:              ; signature: duplicate() => void
   je end_duplicate
   pop_operand_stack esi ; esi = stack.pop(), pop operands. 
   mov [ebp - 4], esi          ; temp = esi save a pointer to the beggining of the first linked list
-  ; mov eax, 0
-  ; mov al, [esi]
-  ; push 0
-  ; push eax
-  ; call append       ; starting a list
-  ; add esp, 8
-  ; mov edi, eax   ;edi is a link
-  ; mov ebx, edi   ; ebx = edi save a pointer to the beggining of the first linked list
-  ; mov esi, [esi + 1]    ; esi = esi->next
-  ; mov edi, [edi + 1]    ; edi = edi->next
   mov edi, 0
   dup_while_start:
     cmp esi, 0 ;if there are no more links
@@ -585,8 +575,6 @@ duplicate:              ; signature: duplicate() => void
     and_whlie_end:
       cmp dword [edi + 1], 0  ; if |edi|<=|esi|
       je long_esi
-      ; mov eax, [ebp - 4]  ;push esi
-      ; push_operand_stack eax
       jmp long_esi_end
     long_esi:
       cmp dword [esi + 1], 0  ; if |esi| == |edi|
@@ -598,12 +586,6 @@ duplicate:              ; signature: duplicate() => void
       push edx
       call free_list
       add esp, 4
-      ; cmp esi, 0  ;if esi == null
-      ; je long_esi_end 
-      ; mov al, 0
-      ; mov [esi], al   ; esi->value = 0
-      ; mov esi, [esi + 1]  ;esi = esi->next
-      ; jmp long_esi
     long_esi_end:
       mov al, [edi]
       and [esi], al ; esi & edi
@@ -649,32 +631,16 @@ bitwiseOr:              ; signature: bitwiseOr() => void
   or_whlie_end:
     cmp dword [esi + 1], 0  ; if |edi|>=|esi|
     je long_edi
-    
-    ; mov eax, [ebp - 4]  ;push esi
-    ; push_operand_stack eax
     jmp long_edi_end
   long_edi:
     cmp dword [edi + 1], 0 ; if |esi| == |edi|
     je long_edi_end
     mov al, [edi]   
     or [esi], al   ; esi | edi
-
     mov eax, [edi + 1]
     mov [esi + 1], eax ;esi->next = edi->next
     mov dword [edi + 1], 0
     jmp or_end_func
-    ; cmp edi, 0  ;if edi == null
-    ; je long_edi_end 
-    ; mov eax, 0
-    ; mov al, [edi] ; al = edi->value
-    ; push esi
-    ; push eax
-    ; call append ; appending esi with edi
-    ; add esp, 8
-    ; mov esi, eax
-    ; mov esi, [esi + 1]  ;esi = esi->next
-    ; jmp long_edi
-
   long_edi_end:
     mov al, [edi]   
     or [esi], al   ; esi | edi
