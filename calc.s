@@ -16,6 +16,9 @@
   call printf
   add esp, 8
   popad
+  push %1
+  call free_list
+  add esp, 4
   %%end_of_push:
   pop ebx
 %endmacro
@@ -39,6 +42,22 @@
   %%end_of_pop:
 %endmacro
 
+%macro validate_operand_stack 1
+  cmp dword [stack_size], %1
+  jl %%not_enoght_operands
+  mov eax, 1
+  jmp %%enough_opernads
+  %%not_enoght_operands:
+  pushad
+  push pop_error_string
+  push calc_string_format
+  call printf
+  add esp, 8
+  popad
+  mov eax, 0
+  %%enough_opernads:
+%endmacro
+
 section .bss
   input_buffer: resb 80
 section .rodata
@@ -46,6 +65,7 @@ section .rodata
   calc_string_format: db '%s', 0
   calc_string: db "calc: ", 0
   debug_string: db "debug: ",10, 0
+  hexa_string_format2: db "%X", 0
   hexa_string_format: db "%02X", 0
   new_line: db 10, 0
   push_error_string: db "Error: Operand Stack Overflow",10,0
@@ -304,10 +324,10 @@ myCalc:
       jmp parse_to_dec
 
     parse_to_dec_end:
-    push_operand_stack esi
     push esi
     call print_list
     add esp, 4
+    push_operand_stack esi
     jmp while_start
   while_end:
   popad
@@ -365,8 +385,16 @@ print_list_recursive: ; signature: print_list(link* list) => void. description: 
   mov ebp, esp
   pushad
   mov ebx, [ebp + 8]    ; get the argument which is a pointer to the head of a list
-  cmp ebx, 0            ; check if null
-  je end_func
+  cmp dword [ebx + 1], 0            ; check if next is null
+  jne next_not_null
+  mov edx, 0
+  mov dl, [ebx]
+  push edx
+  push hexa_string_format2
+  call printf
+  add esp, 8
+  jmp end_func
+  next_not_null:
   push dword [ebx + 1]  ; push link->next
   call print_list_recursive
   add esp, 4            ; clean stack
@@ -390,6 +418,9 @@ unsignedAddition:       ; signature: unsignedAddition() => void ; description: a
   sub esp, 16           ; allocate 4 local variables, two for saving the pointer to the beggining of the operands, the other two
   ; for saving the previous link for both the operands
   pushad
+  validate_operand_stack 2
+  cmp eax, 0
+  je end_unsigned_addition
   pop_operand_stack esi ; esi = stack.pop(), pop operands. 
   mov [ebp - 4], esi    ; temp = esi save a pointer to the beggining of the first linked list
   pop_operand_stack edi ; edi = stack.pop()
@@ -446,7 +477,8 @@ unsignedAddition:       ; signature: unsignedAddition() => void ; description: a
   push_operand_stack eax  ; this pushing must succeed since we poped 2 operands earlier
   push dword [ebp - 16]   ; free the second operand list
   call free_list
-  add esp, 4 
+  add esp, 4
+  end_unsigned_addition:
   popad
   add esp, 16
   mov esp, ebp	
@@ -458,6 +490,9 @@ popAndPrint:            ; signature: popAndPrint() => void
   mov ebp, esp
   sub esp, 4
   pushad
+  validate_operand_stack 1
+  cmp eax, 0
+  je end_pop_and_print
   pop_operand_stack esi
   mov [ebp - 4], esi
   mov edx, esi
@@ -468,6 +503,7 @@ popAndPrint:            ; signature: popAndPrint() => void
   push eax
   call free_list
   add esp, 4
+  end_pop_and_print:
   popad
   add esp, 4
   mov esp, ebp	
@@ -480,6 +516,9 @@ duplicate:              ; signature: duplicate() => void
   mov ebp, esp
   sub esp, 4
   pushad
+  validate_operand_stack 1
+  cmp eax, 0
+  je end_duplicate
   pop_operand_stack esi ; esi = stack.pop(), pop operands. 
   mov [ebp - 4], esi          ; temp = esi save a pointer to the beggining of the first linked list
   ; mov eax, 0
@@ -512,6 +551,7 @@ duplicate:              ; signature: duplicate() => void
   add esp, 4
   push_operand_stack edx  ; push the list we popped at the beginig 
   push_operand_stack edi  ; push the duplicate list. this push might not succeed, handled by the macro.
+  end_duplicate:
   popad
   add esp, 4
   mov esp, ebp	
@@ -525,6 +565,9 @@ duplicate:              ; signature: duplicate() => void
     mov ebp, esp
     sub esp, 8
     pushad
+    validate_operand_stack 2
+    cmp eax, 0
+    je and_end_func
     pop_operand_stack esi ; esi = stack.pop(), pop operands. 
     mov [ebp - 4], esi    ; temp = esi save a pointer to the beggining of the first linked list
     pop_operand_stack edi    ; edi = stack.pop()
@@ -586,6 +629,9 @@ bitwiseOr:              ; signature: bitwiseOr() => void
   mov ebp, esp
   sub esp, 8
   pushad
+  validate_operand_stack 2
+  cmp eax, 0
+  je end_bitwiseor
   pop_operand_stack esi ; esi = stack.pop(), pop operands. 
   mov [ebp - 4], esi    ; temp = esi save a pointer to the beggining of the first linked list
   pop_operand_stack edi    ; edi = stack.pop()
@@ -641,7 +687,8 @@ bitwiseOr:              ; signature: bitwiseOr() => void
   mov eax, [ebp - 8]
   push eax
   call free_list
-  add esp, 4 
+  add esp, 4
+  end_bitwiseor: 
   popad
   add esp, 8
   mov esp, ebp	
@@ -653,6 +700,9 @@ numOfHexDigits:         ; signature: numOfHexDigits() => void
   mov ebp, esp
   sub esp, 4 ; declare a local variable
   pushad
+  validate_operand_stack 1
+  cmp eax, 0
+  je end_numofhex
   pop_operand_stack esi
   mov [ebp - 4], esi
   mov edx, 0 ; edx is the counter
@@ -677,6 +727,7 @@ numOfHexDigits:         ; signature: numOfHexDigits() => void
   push eax
   call free_list
   add esp, 4
+  end_numofhex:
   popad
   mov esp, ebp	
 	pop ebp
