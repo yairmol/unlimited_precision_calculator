@@ -364,6 +364,40 @@ append:
   pop ebp
   ret
 
+append_to_end:
+  push ebp
+  mov ebp, esp
+  sub esp, 4
+  pushad
+  push 5
+  call malloc           ; allocate memory for new link
+  add esp, 4
+  mov ebx, [ebp + 8]
+  mov byte [eax], bl    ; set the first byte to the given argument
+  mov dword [eax + 1], 0 ; new_link->next = null
+  mov esi, [ebp + 12] ;set ebx to be the list
+  cmp esi, 0
+  je null_list
+  mov [ebp - 4], esi  ; temp = esi save a pointer to the beggining of the first linked list
+  append_while_start:
+    cmp dword [esi + 1], 0   ; if esi->next == null
+    je append_whlie_end 
+    mov esi, [esi + 1]  ; esi = esi->next 
+    jmp append_while_start
+  append_whlie_end:
+    mov [esi + 1], eax  ; esi->next = new_link
+    jmp append_to_end_end
+  null_list:
+    mov [ebp - 4], eax
+    jmp append_to_end_end
+  append_to_end_end:
+  popad
+  mov eax, [ebp - 4]
+  add esp, 8
+  mov esp, ebp
+  pop ebp
+  ret
+
 print_list: ; signature: print_list(link* list) => void. description: prints an hexadecimal number from a linked list
   push ebp
   mov ebp, esp
@@ -529,7 +563,7 @@ duplicate:              ; signature: duplicate() => void
     mov al, [esi] ;al = esi->value
     push edi
     push eax
-    call append
+    call append_to_end
     add esp, 8
     mov edi, eax
     mov esi, [esi + 1]
