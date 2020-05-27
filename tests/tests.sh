@@ -1,6 +1,6 @@
 make
 ./generator
-./calc < input.txt > expected_output.txt
-./calc2 < input.txt > output.txt
+./calc < $1 > expected_output.txt
+./calc2 < $1 > output.txt
 ./test
 make clean

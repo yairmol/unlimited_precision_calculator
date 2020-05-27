@@ -21,7 +21,7 @@ int main(int argc, char* argv[]){
         if ((read2 = getline(&line2, &len2, expected_output)) != -1){
             if (read != read2 || strcmp(line, line2) != 0)
             {
-                printf("test failed.\nexpected: %s\nbut got: %s\n", line2, line);
+                printf("test failed.\nexpected: %sbut got: %s", line2, line);
                 success = 0;
             }
             

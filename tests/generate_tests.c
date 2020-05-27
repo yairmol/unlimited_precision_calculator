@@ -31,7 +31,7 @@ int main()
 {
     int i;
     int count = 20; 
-    FILE* input = fopen("input.txt", "w");
+    FILE* input = fopen("random_input.txt", "w");
     char buffer[80];
     char actions[] = {'+', '&', '|', 'n'};
     if (input == NULL){
