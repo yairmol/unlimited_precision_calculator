@@ -147,8 +147,12 @@ link* duplicate_recursive(link* list){
 }
 
 void duplicate(){
-    if (stack_size + 1 > max_stack_size){
+    if (stack_size == 0){
         printf("%s\n", "Error: Insufficient Number of Arguments on Stack");
+        return;
+    }
+    if (stack_size + 1 > max_stack_size){
+        printf("%s\n", "Error: Operand Stack Overflow");
         return;
     }
     link* op = peek();
@@ -163,9 +167,11 @@ void bitwiseAnd(){
     link* op1 = pop(); 
     link* op2 = pop();
     link* temp1 = op1;
+    link* prev1 = op1;
     link* temp2 = op2;
     while (temp1->next != NULL && temp2->next != NULL){
         temp1->value = temp1->value & temp2->value;
+        prev1 = temp1;
         temp1 = temp1->next;
         temp2 = temp2->next;
     }
@@ -173,6 +179,10 @@ void bitwiseAnd(){
     if (temp1->next != NULL){
         free_list(temp1->next);
         temp1->next = NULL;
+    }
+    if (temp1->value == 0){
+        free(temp1);
+        prev1->next = NULL;
     }
     free_list(op2);
     push(op1);
@@ -294,5 +304,5 @@ int main(int argc, char* argv[]){
     }
     stack = (link**) calloc(max_stack_size, sizeof(link*));
     stack_size = 0;  
-    printf("%d\n", myCalc());
+    printf("%X\n", myCalc());
 }

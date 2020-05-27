@@ -8,8 +8,9 @@ char digits[16];
 void generate_number(int count, char* buffer) 
 { 
     int lower = 0, upper = 15;
-    int i; 
-    for (i = 0; i < count; i++) { 
+    int i;
+    buffer[0] =  digits[(rand() % (upper - lower + 2)) + lower + 1];
+    for (i = 1; i < count; i++) { 
         char num = digits[(rand() % (upper - lower + 1)) + lower]; 
         buffer[i] = num;
     }
