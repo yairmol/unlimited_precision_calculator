@@ -1,7 +1,6 @@
 make
-echo $1
-./generator
-./calc < $1 > expected_output.txt
-./calc2 < $1 > output.txt
+#./generator
+./calc < random_input.txt > expected_output.txt
+./calc2 < random_input.txt > output.txt
 ./test
 make clean

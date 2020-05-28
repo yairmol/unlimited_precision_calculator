@@ -167,11 +167,13 @@ void bitwiseAnd(){
     link* op1 = pop(); 
     link* op2 = pop();
     link* temp1 = op1;
-    link* prev1 = op1;
+    link* last = op1;
     link* temp2 = op2;
     while (temp1->next != NULL && temp2->next != NULL){
         temp1->value = temp1->value & temp2->value;
-        prev1 = temp1;
+        if (temp1->value != 0){
+            last = temp1;
+        }
         temp1 = temp1->next;
         temp2 = temp2->next;
     }
@@ -181,8 +183,8 @@ void bitwiseAnd(){
         temp1->next = NULL;
     }
     if (temp1->value == 0){
-        free(temp1);
-        prev1->next = NULL;
+        free_list(last->next);
+        last->next = NULL;
     }
     free_list(op2);
     push(op1);
@@ -213,6 +215,29 @@ void bitwiseOr() {
     push(op1);
 }
 
+void increment(link* list, char toIncrement){
+    char carry = 1;
+    link* prev = list;
+    while (carry && list != NULL)
+    {
+        int x = list->value;
+        x = x + toIncrement;
+        list->value = list->value + toIncrement;
+        if (x > 255){
+            carry = 1;
+            toIncrement = 1;
+        } else {
+            carry = 0;
+        }
+        prev = list;
+        list = list->next;
+    }
+    if (carry){
+        prev->next = append(NULL, 1);
+    }
+    
+}
+
 void countNumOfHexDigits(){
     if (stack_size - 1 < 0){
         printf("%s\n", "Error: Insufficient Number of Arguments on Stack");
@@ -220,30 +245,30 @@ void countNumOfHexDigits(){
     }
     link* op = pop();
     link* temp = op;
-    link* counter_list = NULL;
-    char counter = 0;
-    while (temp != NULL)
+    link* counter_list = append(NULL, 0);
+    while (temp->next != NULL)
     {
-        if (temp->next == NULL && temp->value < 16){
-            counter++;
-        } else {
-            counter = counter + 2;
-        }
+        printf("%d; next: %p\n", counter_list->value, counter_list->next);
+        increment(counter_list,2);
         temp = temp->next;
     }
-    push(append(counter_list, counter));
-    
+    if (temp->value < 16){
+        increment(counter_list, 1);
+    } else {
+        increment(counter_list, 2);
+    }
+    push(counter_list);
 }
 
 int myCalc(){
     int numOfActions = 0;
     int i = 0;
     link* list = NULL;
-    char buffer[80], cont = 0;
+    char buffer[300], cont = 0;
     while (1){
         cont = 0;   
         printf("%s", "calc: ");
-        fgets(buffer, 80, stdin);
+        fgets(buffer, 300, stdin);
         switch (buffer[0])
         {
         case '+':

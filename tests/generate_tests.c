@@ -30,6 +30,31 @@ void generate_action(char* buffer, char* actions)
 // Driver code 
 int main() 
 {
+    if (1){
+        char buffer [280];
+        char* plus = "+\n";
+        char* dup = "d\n";
+        char* pop = "p\n";
+        char* num = "n\n";
+        char* quit = "q\n";
+        FILE* input = fopen("input1.txt", "w");
+        int i, j;
+        for (j = 0; j < 278; j++){
+            buffer[j] = 'F';
+        }
+        buffer[278] = '\n';
+        for (i = 0; i < 2; i++){
+            fwrite(buffer, 1, 279, input);
+            if (i >= 1){
+                fwrite(plus, 1, 2, input);
+                fwrite(dup, 1, 2, input);
+                fwrite(pop, 1, 2, input);
+            } 
+        }
+        fwrite(num, 1, 2, input);
+        fwrite(pop, 1, 2, input);
+        fwrite(quit, 1, 2, input);
+    } else {
     int i;
     int count = 20; 
     FILE* input = fopen("random_input.txt", "w");
@@ -67,6 +92,7 @@ int main()
     buffer[1] = '\n';
     fwrite(buffer, 1, 2, input);
     fclose(input);
+    }
     
     return 0; 
 } 

@@ -44,7 +44,7 @@
 
 %macro validate_operand_stack 1
   cmp dword [stack_size], %1
-  jl %%not_enoght_operands
+  jb %%not_enoght_operands
   mov eax, 1
   jmp %%enough_opernads
   %%not_enoght_operands:
@@ -65,6 +65,7 @@ section .rodata
   calc_string_format: db '%s', 0
   calc_string: db "calc: ", 0
   debug_string: db "debug: ",10, 0
+  hexa_string_format3: db "%X", 10, 0
   hexa_string_format2: db "%X", 0
   hexa_string_format: db "%02X", 0
   new_line: db 10, 0
@@ -152,7 +153,7 @@ main:                   ; signature: main(int argc, char* argv[]) ; desc: main f
   mov [stack_max_size], eax
   call myCalc           ; call myCalc
   push eax              ; push number of calculations as a second argument to printf
-  push integer_string_format ; push the format string as first argument to printf
+  push hexa_string_format3 ; push the format string as first argument to printf
   call printf
   add esp, 8            ; clean stack
   ; free stack
@@ -364,6 +365,40 @@ append:
   pop ebp
   ret
 
+append_to_end:
+  push ebp
+  mov ebp, esp
+  sub esp, 4
+  pushad
+  push 5
+  call malloc           ; allocate memory for new link
+  add esp, 4
+  mov ebx, [ebp + 8]
+  mov byte [eax], bl    ; set the first byte to the given argument
+  mov dword [eax + 1], 0 ; new_link->next = null
+  mov esi, [ebp + 12] ;set ebx to be the list
+  cmp esi, 0
+  je null_list
+  mov [ebp - 4], esi  ; temp = esi save a pointer to the beggining of the first linked list
+  append_while_start:
+    cmp dword [esi + 1], 0   ; if esi->next == null
+    je append_whlie_end 
+    mov esi, [esi + 1]  ; esi = esi->next 
+    jmp append_while_start
+  append_whlie_end:
+    mov [esi + 1], eax  ; esi->next = new_link
+    jmp append_to_end_end
+  null_list:
+    mov [ebp - 4], eax
+    jmp append_to_end_end
+  append_to_end_end:
+  popad
+  mov eax, [ebp - 4]
+  add esp, 8
+  mov esp, ebp
+  pop ebp
+  ret
+
 print_list: ; signature: print_list(link* list) => void. description: prints an hexadecimal number from a linked list
   push ebp
   mov ebp, esp
@@ -529,7 +564,7 @@ duplicate:              ; signature: duplicate() => void
     mov al, [esi] ;al = esi->value
     push edi
     push eax
-    call append
+    call append_to_end
     add esp, 8
     mov edi, eax
     mov esi, [esi + 1]
@@ -562,6 +597,7 @@ duplicate:              ; signature: duplicate() => void
     mov [ebp - 4], esi    ; temp = esi save a pointer to the beggining of the first linked list
     pop_operand_stack edi    ; edi = stack.pop()
     mov [ebp - 8], edi
+    mov ebx, esi          ; ebx saves the last link that her value is not 0
     and_while_start:
       cmp dword [esi + 1], 0  ; if esi->next == null
       je and_whlie_end
@@ -569,35 +605,39 @@ duplicate:              ; signature: duplicate() => void
       je and_whlie_end
       mov al, [edi]   
       and [esi], al   ; esi & edi
+      cmp byte [esi], 0   ; if (esi->value != 0)
+      je and_is_zero
+      mov ebx, esi       ; if so then ebx will now store the last link whose value is not 0
+      and_is_zero:
       mov esi, [esi + 1]  ; esi = esi->next 
       mov edi, [edi + 1]  ; edi = edi->next
       jmp and_while_start
     and_whlie_end:
-      cmp dword [edi + 1], 0  ; if |edi|<=|esi|
-      je long_esi
-      jmp long_esi_end
-    long_esi:
-      cmp dword [esi + 1], 0  ; if |esi| == |edi|
-      je long_esi_end
-      mov al, [edi]
-      and [esi], al ;esi & edi
-      mov edx, [esi + 1]
-      mov dword [esi + 1], 0
-      push edx
-      call free_list
-      add esp, 4
-    long_esi_end:
       mov al, [edi]
       and [esi], al ; esi & edi
-      mov eax, [ebp - 4]
-      ; push eax      ; debug message
-      ; call print_list
-      ; add esp, 4  
-      push_operand_stack eax ;   push esi, ; this pushing must succeed since we poped 2 operands earlier
-      mov eax, [ebp - 8]
-      push eax
-      call free_list
+      cmp dword [esi + 1], 0  ; if (esi->next != null)
+      je short_esi            ; if it is null do nothing
+      mov edx, [esi + 1]      ; if it is not null then cut the remaining links
+      mov dword [esi + 1], 0  ; esi->next = null
+      push edx
+      call free_list          ; free the previous esi->next
       add esp, 4
+    short_esi:
+    cmp byte [esi], 0         ; check if the last link value is 0
+    jne last_not_zero
+    push dword [ebx + 1]
+    call free_list            ; print_list(ebx->next) where ebx is the last non-zero valued link 
+    add esp, 4
+    mov dword [ebx + 1], 0    ; ebx->next = null
+    last_not_zero:
+    mov eax, [ebp - 4]        ; get the first operand begining
+    ; push eax      ; debug message
+    ; call print_list
+    ; add esp, 4  
+    push_operand_stack eax    ; push esi, ; this pushing must succeed since we poped 2 operands earlier
+    push dword [ebp - 8]            ; delete the second opernad list
+    call free_list
+    add esp, 4
     and_end_func:
     popad
     add esp, 8
@@ -680,7 +720,7 @@ numOfHexDigits:         ; signature: numOfHexDigits() => void
   jmp count_while_start
   count_while_end:
   cmp byte [esi], 16 ;if esi < 16
-  jl one_letter
+  jb one_letter
   add edx, 1 ;add total of two
   one_letter:
   add edx, 1 ; else add total of one
